@@ -1,0 +1,25 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/build/
+
+# Project specific
+uploads/
+results/
+logs/
+weights/
+
+# IDE
+.vscode/
+.idea/

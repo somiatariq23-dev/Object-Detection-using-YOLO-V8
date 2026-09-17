@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # 1. Redis Queue Broker
+  redis:
+    image: redis:alpine
+    container_name: eyesight_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # 2. FastAPI API Server Backend
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eyesight_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_QUEUE_NAME=video_processing_queue
+    volumes:
+      - ./uploads:/app/uploads
+      - ./results:/app/results
+      - ./logs:/app/logs
+      - ./weights:/app/weights
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # 3. Asynchronous Video Processing Queue Consumer Worker
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eyesight_worker
+    command: python backend/worker.py
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_QUEUE_NAME=video_processing_queue
+    volumes:
+      - ./uploads:/app/uploads
+      - ./results:/app/results
+      - ./logs:/app/logs
+      - ./weights:/app/weights
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # 4. React Vite Frontend Dashboard
+  frontend:
+    image: node:20-alpine
+    container_name: eyesight_frontend
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+    command: sh -c "npm install && npm run dev"
+    depends_on:
+      - backend
+    restart: unless-stopped
